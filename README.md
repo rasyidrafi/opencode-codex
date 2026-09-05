@@ -30,7 +30,7 @@ npm install
 npm run build
 ```
 
-This checkout includes an `opencode.json` that loads the local plugin. Other projects can reference the absolute path to `opencode-codex.js` instead of the npm package.
+This checkout uses the published npm package by default. To test local changes interactively, replace the plugin entry in `opencode.json` with `./opencode-codex.js` after building. Other projects can reference the absolute path to that entrypoint.
 
 Restart OpenCode, select the **Codex** provider, and choose a model. The plugin reads the model list and supported reasoning efforts from your installed Codex app-server. To inspect the available IDs:
 
