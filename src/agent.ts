@@ -71,7 +71,7 @@ export async function* streamCodex(options: RunOptions): AsyncGenerator<CodexEve
   try {
     if (options.signal?.aborted) return;
     await rpc.initialize();
-    const sandbox = options.noSession || options.readOnly ? "read-only" : process.env.OPENCODE_CODEX_SANDBOX || "workspace-write";
+    const sandbox = options.noSession || options.readOnly ? "read-only" : process.env.OPENCODE_CODEX_SANDBOX || "danger-full-access";
     if (!["read-only", "workspace-write", "danger-full-access"].includes(sandbox)) throw new Error("Invalid OPENCODE_CODEX_SANDBOX");
     const params: ThreadStartParams = { cwd: options.cwd, model: options.model, approvalPolicy: "never", sandbox: sandbox as ThreadStartParams["sandbox"] };
     const result = threadId

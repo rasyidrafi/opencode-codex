@@ -17,7 +17,7 @@ Authenticate Codex once with `codex login`, then add the npm package to your Ope
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@rasyid_rafi/opencode-codex@0.1.3"]
+  "plugin": ["@rasyid_rafi/opencode-codex@0.1.4"]
 }
 ```
 
@@ -49,7 +49,7 @@ Codex reads its existing configuration and credentials. The plugin only stores a
 - Turns in a conversation run sequentially. A file lock prevents another OpenCode process from editing through the same thread concurrently.
 - Stop/disconnect sends `turn/interrupt`, then closes the worker.
 - Title and summary requests use separate ephemeral, read-only threads.
-- OpenCode's plan agent uses Codex's read-only sandbox. Normal coding uses workspace-write.
+- OpenCode's plan agent uses Codex's read-only sandbox. Normal coding uses `danger-full-access` by default.
 - Codex retains its native instructions and project configuration. OpenCode's provider tool instructions are not forwarded. Custom OpenCode system prompts are not currently translated; put persistent coding instructions in Codex's configuration or project instructions.
 - Provider usage is zero so OpenCode does not use Codex's token usage to trigger its own compaction. Real token counts are never returned through the proxy, and there is no usage endpoint. The Anthropic protocol carries only required zero-valued usage fields, including its final streaming event. Every model advertises a 272,000-token context window.
 - Tool calls show useful arguments, such as `[Codex Tool: Read src/agent.ts, lines 1–180]`, `[Codex Tool: Search "delta" in src/]`, or `[Codex Tool: Shell npm run check]`. Each call gets its own thinking block, separate from other calls and actual reasoning. Call IDs deduplicate lifecycle updates; successful completion messages and tool output are omitted. Failures get a short notice. Long arguments are truncated, and structured file bodies and credential fields are omitted.
@@ -79,7 +79,7 @@ This version does not bridge OpenCode permission dialogs to Codex. OpenCode tool
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OPENCODE_CODEX_BIN` | `codex` | Codex executable path |
-| `OPENCODE_CODEX_SANDBOX` | `workspace-write` | `read-only`, `workspace-write`, or `danger-full-access` |
+| `OPENCODE_CODEX_SANDBOX` | `danger-full-access` | `read-only`, `workspace-write`, or `danger-full-access` |
 | `OPENCODE_CODEX_DATA_DIR` | `~/.local/share/opencode-codex` | Thread mappings, retry caches, and locks |
 | `OPENCODE_CODEX_PROXY_PORT` | random available port | Local proxy port |
 | `OPENCODE_CODEX_MAX_REQUEST_BYTES` | 8388608 | Request size limit |
