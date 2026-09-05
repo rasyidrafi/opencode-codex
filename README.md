@@ -62,7 +62,7 @@ The adapter accepts text input and forwards image attachments to Codex models th
 Metadata precedence is field-specific:
 
 1. The explicit adapter context policy is 272,000 tokens. Generic 1M or 400k API windows never override it. This changes the OpenCode catalog, not your Codex configuration.
-2. Live Codex `model/list` owns available model IDs, names, descriptions, default selection, native input modalities, and supported reasoning efforts.
+2. Live Codex `model/list` owns available model IDs, descriptions, default selection, native input modalities, and supported reasoning efforts. Meaningful Codex display names take priority. When the name is missing or repeats the model ID, ignoring case, the exact OpenAI record from Models.dev supplies the display label. Without that metadata, the Codex label or model ID is preserved.
 3. Exact OpenAI model records from Models.dev supply family, release date, update date, and output limit where available. These are generic model metadata, not evidence of a different Codex context window.
 4. Missing output metadata uses a conservative 32,768-token display fallback. Missing descriptive fields stay absent. Metadata fetch failures do not block Codex.
 

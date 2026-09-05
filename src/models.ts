@@ -1,4 +1,4 @@
-import { loadMetadata, modelMetadata, type ModelMetadata } from "./metadata.js";
+import { loadMetadata, modelDisplayName, modelMetadata, type ModelMetadata } from "./metadata.js";
 import type { ModelListResponse } from "./generated/v2/ModelListResponse.js";
 import { CodexRpc } from "./rpc.js";
 export type CodexModel = { id: string; name: string; efforts: string[]; isDefault: boolean; description: string; nativeInputModalities: string[] } & ModelMetadata;
@@ -17,7 +17,12 @@ export async function refreshModels(cwd: string) {
       do {
         const result: ModelListResponse = await rpc.request("model/list", { limit: 100, ...(cursor ? { cursor } : {}) });
         const enrichment = await metadata;
-        catalog.push(...result.data.map((m) => ({ ...modelMetadata(m.model || m.id, enrichment), id: m.model || m.id, name: m.displayName, description: m.description || "", nativeInputModalities: m.inputModalities || ["text"], efforts: m.supportedReasoningEfforts.map((e) => e.reasoningEffort), isDefault: m.isDefault })));
+        catalog.push(...result.data.map((m) => {
+          const id = m.model || m.id;
+          const meta = modelMetadata(id, enrichment);
+          const label = modelDisplayName(id, m.displayName, enrichment);
+          return { ...meta, id, name: label.name, sources: { ...meta.sources, name: label.source }, description: m.description || "", nativeInputModalities: m.inputModalities || ["text"], efforts: m.supportedReasoningEfforts.map((e) => e.reasoningEffort), isDefault: m.isDefault };
+        }));
         cursor = result.nextCursor || undefined;
       } while (cursor);
       if (!catalog.length) throw new Error("Codex returned no available models");

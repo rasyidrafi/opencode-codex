@@ -1,4 +1,4 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@rasyid_rafi/opencode-codex@0.1.4"]
+  "plugin": ["@rasyid_rafi/opencode-codex@0.1.6"]
 }

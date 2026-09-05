@@ -5,7 +5,7 @@ export type ModelMetadata = {
   family?: string;
   releaseDate?: string;
   lastUpdated?: string;
-  sources: { context: string; output: string; catalog: string; descriptive?: string };
+  sources: { context: string; output: string; catalog: string; name?: string; descriptive?: string };
 };
 type JsonRecord = Record<string, any>;
 function record(value: unknown): JsonRecord | undefined {
@@ -18,6 +18,19 @@ export function findMetadata(payload: unknown, id: string): JsonRecord | undefin
   return record(data?.["openai/" + bare])
     || record(data?.openai?.models?.[bare])
     || (record(data?.[bare])?.id === bare ? record(data?.[bare]) : undefined);
+}
+// Codex sometimes returns the slug, including an uppercased slug, as displayName.
+// Only an exact OpenAI record may replace that placeholder with a catalog label.
+export function modelDisplayName(id: string, displayName: string | undefined, payload: unknown): { name: string; source: string } {
+  const label = displayName?.trim();
+  const bare = id.replace(/^openai\//, "");
+  const isId = label && [id, bare].some(value => value.toLowerCase() === label.toLowerCase());
+  if (label && !isId) return { name: label, source: "codex-app-server:model/list" };
+  const metadataName = findMetadata(payload, id)?.name;
+  if (typeof metadataName === "string" && metadataName.trim()) {
+    return { name: metadataName.trim(), source: "models.dev:exact-openai-id" };
+  }
+  return { name: label || id, source: label ? "codex-app-server:model/list" : "model-id" };
 }
 export function modelMetadata(id: string, payload: unknown): ModelMetadata {
   const m = findMetadata(payload, id);
