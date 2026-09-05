@@ -32,8 +32,11 @@ test("OpenCode loads plugin, edits through Codex and resumes across processes", 
     expect(first.events.some(e => e.type === "reasoning"), first.stdout).toBe(true);
     expect(first.events.some(e => e.type === "tool_use"), first.stdout).toBe(false);
     const reasoning = first.events.filter(e => e.type === "reasoning").map(e => e.part.text).join("\n");
-    expect(reasoning).toMatch(/(?:Shell:|Read |Edit ).*e2e-proof/);
+    expect(reasoning).toMatch(/(?:Shell |Read |Edit ).*e2e-proof/);
     expect(reasoning).not.toMatch(/\[Codex tool:|commandExecution|\[completed\]/);
+    const toolBlocks = first.events.filter(e => e.type === "reasoning" && e.part.text.startsWith("[Codex Tool:"));
+    expect(toolBlocks.length).toBeGreaterThan(0);
+    for (const block of toolBlocks) expect(block.part.text.match(/\[Codex Tool:/g)).toHaveLength(1);
     const finish = first.events.find(e => e.type === "step_finish");
     expect(finish?.part?.tokens?.input, first.stdout).toBe(0);
     expect(finish?.part?.tokens?.output, first.stdout).toBe(0);

@@ -23,7 +23,7 @@ function actionTitle(action: Action): string {
   }
   if (action.type === "listFiles") return `List ${action.path || "."}`;
   if (action.type === "search") return `Search${action.query ? ` ${JSON.stringify(action.query)}` : ""}${action.path ? ` in ${action.path}` : ""}`;
-  return `Shell${action.command ? `: ${command(action.command)}` : ""}`;
+  return `Shell${action.command ? ` ${command(action.command)}` : ""}`;
 }
 
 function argumentSummary(value: unknown): string {
@@ -37,7 +37,7 @@ function title(item: Item): string | undefined {
   switch (item.type) {
     case "commandExecution": return compact(item.commandActions?.length
       ? [...new Set(item.commandActions.map(actionTitle))].join("; ")
-      : `Shell${item.command ? `: ${command(item.command)}` : ""}`);
+      : `Shell${item.command ? ` ${command(item.command)}` : ""}`);
     case "fileChange": return compact(`Edit${item.changes?.length ? ` ${item.changes.map(c => c.path).join(", ")}` : ""}`);
     case "webSearch": return compact(`Web search${item.query ? `: ${item.query}` : ""}`);
     case "imageView": return compact(`View image${item.path ? ` ${item.path}` : ""}`);
@@ -66,11 +66,11 @@ export class ActivityTranslator {
         if (known?.failureShown) return;
         this.tools.set(item.id, { title: known?.title || description, failureShown: true });
         const status = item.status === "canceled" ? "cancelled" : failed && (!item.status || item.status === "completed") ? "failed" : item.status;
-        return `${known?.title || description} [${status}${typeof item.exitCode === "number" ? `, exit ${item.exitCode}` : ""}]\n`;
+        return `[Codex Tool ${status}: ${known?.title || description}${typeof item.exitCode === "number" ? `, exit ${item.exitCode}` : ""}]\n`;
       }
       if (known) return;
       this.tools.set(item.id, { title: description, failureShown: false });
-      return `${description}\n`;
+      return `[Codex Tool: ${description}]\n`;
     }
     if (this.notices.has(item.id)) return;
     if (item.type === "contextCompaction") {

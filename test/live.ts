@@ -35,7 +35,7 @@ test("real Codex turn can be interrupted during a running command", async () => 
   const fallback = setTimeout(() => controller.abort(), 60000);
   try {
     for await (const event of streamCodex({ cwd, model, noSession: true, signal: controller.signal, prompt: "Run the shell command sleep 30 now. Do not run any other commands." })) {
-      if (event.kind === "activity" && event.text.startsWith("Shell")) {
+      if (event.kind === "activity" && event.text.startsWith("[Codex Tool: Shell")) {
         abortedAt = Date.now();
         controller.abort();
       }

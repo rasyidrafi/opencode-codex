@@ -17,7 +17,7 @@ Authenticate Codex once with `codex login`, then add the npm package to your Ope
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@rasyid_rafi/opencode-codex@0.1.2"]
+  "plugin": ["@rasyid_rafi/opencode-codex@0.1.3"]
 }
 ```
 
@@ -52,7 +52,7 @@ Codex reads its existing configuration and credentials. The plugin only stores a
 - OpenCode's plan agent uses Codex's read-only sandbox. Normal coding uses workspace-write.
 - Codex retains its native instructions and project configuration. OpenCode's provider tool instructions are not forwarded. Custom OpenCode system prompts are not currently translated; put persistent coding instructions in Codex's configuration or project instructions.
 - Provider usage is zero so OpenCode does not use Codex's token usage to trigger its own compaction. Real token counts are never returned through the proxy, and there is no usage endpoint. The Anthropic protocol carries only required zero-valued usage fields, including its final streaming event. Every model advertises a 272,000-token context window.
-- Tool calls show useful arguments, such as `Read src/agent.ts, lines 1–180`, `Search "delta" in src/`, or `Shell: npm run check`. Consecutive calls share a thinking block. Call IDs deduplicate lifecycle updates; successful completion messages and tool output are omitted. Failures get a short notice. Long arguments are truncated, and structured file bodies and credential fields are omitted.
+- Tool calls show useful arguments, such as `[Codex Tool: Read src/agent.ts, lines 1–180]`, `[Codex Tool: Search "delta" in src/]`, or `[Codex Tool: Shell npm run check]`. Each call gets its own thinking block, separate from other calls and actual reasoning. Call IDs deduplicate lifecycle updates; successful completion messages and tool output are omitted. Failures get a short notice. Long arguments are truncated, and structured file bodies and credential fields are omitted.
 - Assistant text is forwarded as Codex emits deltas, without waiting for turn completion. Some Codex responses arrive from app-server as a burst of deltas at message completion; the wrapper cannot display that text before it arrives.
 
 The initial adapter accepts text input. Reference workspace files by path. Image, audio, and document attachments are rejected explicitly. OpenCode conversation forks import visible conversation history into a fresh Codex thread; they do not clone hidden Codex history or undo file changes.
