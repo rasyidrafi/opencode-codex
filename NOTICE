@@ -1,0 +1,3 @@
+The generated protocol types under src/generated and dist/generated originate from OpenAI Codex (https://github.com/openai/codex), licensed under Apache-2.0. Generated with codex-cli 0.153.4. See LICENSE-APACHE-2.0.
+
+The HTTP/SSE adapter derives from the sibling opencode-commandcode-cli project, licensed under MIT.
