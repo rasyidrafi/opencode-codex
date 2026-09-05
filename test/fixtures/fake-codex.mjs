@@ -20,7 +20,8 @@ createInterface({ input: process.stdin }).on("line", line => {
     notify("item/completed", { item: { id: "message", type: "agentMessage", text: "Working." } });
     notify("item/reasoning/summaryTextDelta", { itemId: "reason", delta: "Checking the file." });
     notify("item/started", { item: { id: "cmd", type: "commandExecution", command: "cat proof.txt" } });
-    notify("item/commandExecution/outputDelta", { itemId: "cmd", delta: "ok\n" });
+    notify("item/started", { item: { id: "cmd", type: "commandExecution", command: "cat proof.txt" } });
+    notify("item/commandExecution/outputDelta", { itemId: "cmd", delta: "RAW_TOOL_OUTPUT\n" });
     notify("item/completed", { item: { id: "cmd", type: "commandExecution", command: "cat proof.txt", status: "completed", exitCode: 0 } });
     notify("item/completed", { item: { id: "final", type: "agentMessage", text: "Done." } });
     notify("thread/tokenUsage/updated", { tokenUsage: { last: { inputTokens: 100, cachedInputTokens: 20, outputTokens: 10 } } });

@@ -1,3 +1,4 @@
+import { ActivityTranslator } from "./activity.js";
 import type { ThreadStartParams } from "./generated/v2/ThreadStartParams.js";
 import type { TurnStartParams } from "./generated/v2/TurnStartParams.js";
 import { CodexRpc } from "./rpc.js";
@@ -16,8 +17,9 @@ export async function* streamCodex(options: RunOptions): AsyncGenerator<CodexEve
   let finished = false;
   let interruption: Promise<unknown> | undefined;
   const seen = new Map<string, string>();
+  const activity = new ActivityTranslator();
   let usage: CodexUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
-  const push = (e: CodexEvent) => { queue.push(e); options.onActivity?.(); wake?.(); };
+  const push = (e: CodexEvent) => { queue.push(e); wake?.(); };
   const interrupt = () => {
     if (threadId && turnId) interruption ||= rpc.request("turn/interrupt", { threadId, turnId }).catch(() => {});
     else rpc.close();
@@ -33,12 +35,12 @@ export async function* streamCodex(options: RunOptions): AsyncGenerator<CodexEve
     if (method === "adapter/error") { push({ kind: "error", text: p.message }); finished = true; return; }
     if (p?.threadId !== threadId) return;
     lastActivity = Date.now();
+    options.onActivity?.();
     if (method === "turn/started") { turnId = p.turn.id; if (options.signal?.aborted) interrupt(); }
     if (method === "item/agentMessage/delta" || method === "item/reasoning/summaryTextDelta") {
       seen.set(p.itemId, (seen.get(p.itemId) || "") + p.delta);
       push({ kind: method.includes("agentMessage") ? "text" : "reasoning", text: p.delta });
     }
-    if (method === "item/commandExecution/outputDelta") push({ kind: "activity", text: p.delta.slice(0, 16000) + (p.delta.length > 16000 ? "\n[output chunk truncated]\n" : "") });
     if (method === "item/started" || method === "item/completed") {
       const i = p.item;
       if (i.type === "agentMessage" && method === "item/completed") {
@@ -48,11 +50,9 @@ export async function* streamCodex(options: RunOptions): AsyncGenerator<CodexEve
       } else if (i.type === "reasoning" && method === "item/completed" && !seen.has(i.id)) {
         const summary = (i.summary || []).join("\n");
         if (summary) push({ kind: "reasoning", text: summary });
-      } else if (!["userMessage", "agentMessage", "reasoning"].includes(i.type)) {
-        const detail = i.command || i.tool || i.query || i.path || (i.changes ? i.changes.map((c: any) => c.path).join(", ") : i.text || "");
-        push({ kind: "activity", text: `[${i.type}] ${method.endsWith("started") ? "started" : i.status || "completed"}${detail ? ": " + detail : ""}${i.exitCode != null ? " (exit " + i.exitCode + ")" : ""}\n` });
-        if (method === "item/started" && i.arguments) push({ kind: "activity", text: JSON.stringify(i.arguments).slice(0, 16000) + "\n" });
-        if (method === "item/completed" && (i.result || i.error)) push({ kind: "activity", text: JSON.stringify(i.result || i.error).slice(0, 16000) + "\n" });
+      } else {
+        const text = activity.item(method, i);
+        if (text) push({ kind: "activity", text });
       }
     }
     if (method === "adapter/requestDeclined") push({ kind: "activity", text: `Codex requested unsupported interaction: ${p.method}. Declined.\n` });

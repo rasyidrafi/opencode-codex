@@ -235,7 +235,7 @@ async function handleMessages(request: Request, body: AnthropicMessageRequest): 
       model: responseModel(body.model, model),
       content: segments.map((segment, index) => segment.kind === "text"
         ? { type: "text", text: segment.text }
-        : { type: "thinking", thinking: segment.text, signature: `commandcode-${index}` }),
+        : { type: "thinking", thinking: segment.text, signature: `codex-${index}` }),
       stop_reason: finish,
       stop_sequence: null,
       // Deliberately zero. The real CLI usage never crosses the provider wire.
@@ -277,7 +277,7 @@ function streamAnthropic(
           send({
             type: "content_block_delta",
             index: active.index,
-            delta: { type: "signature_delta", signature: `commandcode-${id}-${active.index}` },
+            delta: { type: "signature_delta", signature: `codex-${id}-${active.index}` },
           });
         }
         send({ type: "content_block_stop", index: active.index });

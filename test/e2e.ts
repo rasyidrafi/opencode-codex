@@ -9,7 +9,7 @@ test("OpenCode loads plugin, edits through Codex and resumes across processes", 
   const model = process.env.OPENCODE_CODEX_TEST_MODEL || catalog.find(m => m.isDefault)!.id;
   const config = join(cwd, "opencode.json");
   await writeFile(config, JSON.stringify({ plugin: [resolve(process.env.OPENCODE_CODEX_TEST_PLUGIN || "opencode-codex.js")], model: "codex/" + model }));
-  const env = { ...process.env, OPENCODE_CONFIG: config, OPENCODE_CODEX_DATA_DIR: join(cwd, "sessions"), OPENCODE_DISABLE_DEFAULT_PLUGINS: "true" };
+  const env = { ...process.env, XDG_CONFIG_HOME: join(cwd, "config"), OPENCODE_CONFIG: config, OPENCODE_CODEX_DATA_DIR: join(cwd, "sessions"), OPENCODE_DISABLE_DEFAULT_PLUGINS: "true" };
   async function run(prompt: string, session?: string) {
     const p = Bun.spawn(["opencode", "run", "--dir", cwd, "--model", "codex/" + model, "--format", "json", "--thinking", ...(session ? ["--session", session] : []), prompt], { cwd, env, stdout: "pipe", stderr: "pipe" });
     const timeout = setTimeout(() => p.kill(), 180000);
@@ -31,6 +31,11 @@ test("OpenCode loads plugin, edits through Codex and resumes across processes", 
     expect(await readFile(join(cwd, "e2e-proof.txt"), "utf8")).toContain("opencode-codex-e2e-ok");
     expect(first.events.some(e => e.type === "reasoning"), first.stdout).toBe(true);
     expect(first.events.some(e => e.type === "tool_use"), first.stdout).toBe(false);
+    const reasoning = first.events.filter(e => e.type === "reasoning").map(e => e.part.text).join("\n");
+    expect(reasoning).toContain("[Codex tool:");
+    expect(reasoning).not.toMatch(/\[(commandExecution|fileChange)\]|\[Codex tool: (Running|Completed)/);
+    const activities = first.events.filter(e => e.type === "reasoning" && e.part.text.startsWith("[Codex tool:"));
+    expect(activities.every(e => /^\[Codex tool: [^\]\n]+\]\n?$/.test(e.part.text)), reasoning).toBe(true);
     const finish = first.events.find(e => e.type === "step_finish");
     expect(finish?.part?.tokens?.input, first.stdout).toBe(0);
     expect(finish?.part?.tokens?.output, first.stdout).toBe(0);

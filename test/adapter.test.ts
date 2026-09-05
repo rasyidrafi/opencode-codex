@@ -10,7 +10,7 @@ afterAll(async () => { await stopProxy(); delete process.env.OPENCODE_CODEX_BIN;
 test("translates tool events, deduplicates final text, and counts cache correctly", async () => {
   const events = await Array.fromAsync(streamCodex({ cwd: process.cwd(), model: "fake-model", prompt: "hi", noSession: true }));
   expect(events.filter(e => e.kind === "text").map(e => e.text).join("")).toBe("Working.Done.");
-  expect(events.some(e => e.kind === "activity" && e.text.includes("cat proof.txt"))).toBe(true);
+  expect(events.filter(e => e.kind === "activity")).toEqual([{ kind: "activity", text: "[Codex tool: shell]\n" }]);
   expect(events.at(-1)).toMatchObject({ kind: "finish", usage: { inputTokens: 80, cacheReadTokens: 20, outputTokens: 10 } });
 });
 test("propagates failed turns", async () => {
@@ -36,8 +36,12 @@ test("proxy emits ordered thinking blocks, zero usage, and no native tool calls"
   expect(wire).toContain("thinking_delta");
   expect(wire).not.toContain('"tool_use"');
   expect(wire).toContain('"input_tokens":0');
-  expect(wire.indexOf("Working.")).toBeLessThan(wire.indexOf("cat proof.txt"));
+  expect(wire.indexOf("Working.")).toBeLessThan(wire.indexOf("[Codex tool: shell]"));
   expect(wire).toContain("message_stop");
+  expect(wire.match(/Codex tool: shell/g)).toHaveLength(1);
+  expect(wire).not.toContain("cat proof.txt");
+  expect(wire).not.toContain("commandExecution");
+  expect(wire).not.toContain("RAW_TOOL_OUTPUT");
   const denied = await fetch(getProxyBaseUrl() + "/messages", { method: "POST", body: "{}" });
   expect(denied.status).toBe(401);
 });
