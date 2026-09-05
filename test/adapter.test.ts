@@ -10,7 +10,7 @@ afterAll(async () => { await stopProxy(); delete process.env.OPENCODE_CODEX_BIN;
 test("translates tool events, deduplicates final text, and counts cache correctly", async () => {
   const events = await Array.fromAsync(streamCodex({ cwd: process.cwd(), model: "fake-model", prompt: "hi", noSession: true }));
   expect(events.filter(e => e.kind === "text").map(e => e.text).join("")).toBe("Working.Done.");
-  expect(events.filter(e => e.kind === "activity")).toEqual([{ kind: "activity", text: "[Codex tool: shell]\n" }]);
+  expect(events.filter(e => e.kind === "activity")).toEqual([{ kind: "activity", text: "Shell: cat proof.txt\n" }]);
   expect(events.at(-1)).toMatchObject({ kind: "finish", usage: { inputTokens: 80, cacheReadTokens: 20, outputTokens: 10 } });
 });
 test("propagates failed turns", async () => {
@@ -36,10 +36,10 @@ test("proxy emits ordered thinking blocks, zero usage, and no native tool calls"
   expect(wire).toContain("thinking_delta");
   expect(wire).not.toContain('"tool_use"');
   expect(wire).toContain('"input_tokens":0');
-  expect(wire.indexOf("Working.")).toBeLessThan(wire.indexOf("[Codex tool: shell]"));
+  expect(wire.indexOf("Working.")).toBeLessThan(wire.indexOf("Shell: cat proof.txt"));
   expect(wire).toContain("message_stop");
-  expect(wire.match(/Codex tool: shell/g)).toHaveLength(1);
-  expect(wire).not.toContain("cat proof.txt");
+  expect(wire.match(/Shell: cat proof.txt/g)).toHaveLength(1);
+  expect(wire).toContain("cat proof.txt");
   expect(wire).not.toContain("commandExecution");
   expect(wire).not.toContain("RAW_TOOL_OUTPUT");
   const denied = await fetch(getProxyBaseUrl() + "/messages", { method: "POST", body: "{}" });
@@ -121,4 +121,31 @@ test("every usage field on the provider wire is zero, and no usage endpoint exis
   expect((await fetch(getProxyBaseUrl() + "/usage", { headers: { "x-api-key": LOCAL_API_KEY } })).status).toBe(404);
   const models = await (await fetch(getProxyBaseUrl() + "/models", { headers: { "x-api-key": LOCAL_API_KEY } })).json() as any;
   expect(models.data[0].limit.context).toBe(272000);
+});
+
+test("streams text before completion and groups adjacent tool summaries", async () => {
+  await startProxy();
+  const response = await fetch(getProxyBaseUrl() + "/messages", {
+    method: "POST", headers: { "x-api-key": LOCAL_API_KEY, "x-opencode-codex-request-kind": "title" },
+    body: JSON.stringify({ model: "fake-model", stream: true, messages: [{ role: "user", content: "DELAYED_STREAM" }] }),
+  });
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let wire = "";
+  while (!wire.includes("First fragment.")) {
+    const chunk = await reader.read();
+    expect(chunk.done).toBe(false);
+    wire += decoder.decode(chunk.value, { stream: true });
+  }
+  expect(wire).not.toContain("Second fragment.");
+  expect(wire).not.toContain("message_stop");
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    wire += decoder.decode(chunk.value, { stream: true });
+  }
+  const events = wire.split("\n").filter(l => l.startsWith("data: ")).map(l => JSON.parse(l.slice(6)));
+  expect(events.filter(e => e.type === "content_block_start" && e.content_block.type === "thinking")).toHaveLength(1);
+  expect(events.filter(e => e.delta?.type === "text_delta").map(e => e.delta.text).join("")).toBe("First fragment. Second fragment.");
+  expect(events.filter(e => e.delta?.type === "thinking_delta").map(e => e.delta.thinking).join("")).toBe("Read a.ts\nRead b.ts\n");
 });

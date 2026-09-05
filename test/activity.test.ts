@@ -1,33 +1,33 @@
 import { test, expect } from "bun:test";
 import { ActivityTranslator } from "../src/activity";
 
-test("a shell call's repeated start, output and completion produce one compact marker", () => {
-  const activity = new ActivityTranslator();
-  const item = { id: "call-1", type: "commandExecution", command: "/bin/bash -lc 'cat README.md package.json'" };
-  expect(activity.item("item/started", item)).toBe("[Codex tool: shell]\n");
-  expect(activity.item("item/started", item)).toBeUndefined();
-  expect(activity.item("item/completed", { ...item, status: "completed" })).toBeUndefined();
-  expect(activity.item("item/started", { ...item, id: "call-2" })).toBe("[Codex tool: shell]\n");
+test("shows arguments once per call, retaining separate calls and failures", () => {
+  const a = new ActivityTranslator();
+  const item = { id: "1", type: "commandExecution", command: "/bin/bash -lc 'npm run check'" };
+  expect(a.item("item/started", item)).toBe("Shell: npm run check\n");
+  expect(a.item("item/started", item)).toBeUndefined();
+  expect(a.item("item/completed", { ...item, status: "completed", exitCode: 0 })).toBeUndefined();
+  expect(a.item("item/started", { ...item, id: "2" })).toBe("Shell: npm run check\n");
+  expect(a.item("item/completed", { ...item, id: "2", status: "completed", exitCode: 1 })).toBe("Shell: npm run check [failed, exit 1]\n");
+  expect(a.item("item/completed", { ...item, id: "2", exitCode: 1 })).toBeUndefined();
 });
 
-test("normalizes structured command actions and Codex tool kinds", () => {
-  const activity = new ActivityTranslator();
-  for (const [type, name] of [["read", "read"], ["listFiles", "list"], ["search", "search"], ["unknown", "shell"]]) {
-    expect(activity.item("item/started", { id: type!, type: "commandExecution", commandActions: [{ type: type! }] })).toBe(`[Codex tool: ${name}]\n`);
-  }
-  for (const [type, name] of [["fileChange", "apply_patch"], ["webSearch", "web_search"], ["imageView", "view_image"]]) {
-    expect(activity.item("item/started", { id: type!, type: type! })).toBe(`[Codex tool: ${name}]\n`);
-  }
-  expect(activity.item("item/started", { id: "mcp", type: "mcpToolCall", server: "docs", tool: "search" })).toBe("[Codex tool: docs/search]\n");
-  expect(activity.item("item/started", { id: "agent", type: "collabToolCall", tool: "spawn_agent" })).toBe("[Codex tool: spawn_agent]\n");
+test("summarizes structured paths, ranges, searches, patches and MCP arguments", () => {
+  const a = new ActivityTranslator();
+  const show = (item: any) => a.item("item/started", { id: JSON.stringify(item), ...item });
+  expect(show({ type: "commandExecution", commandActions: [{ type: "read", path: "src/agent.ts", command: "sed -n '1,180p' src/agent.ts" }] })).toBe("Read src/agent.ts, lines 1–180\n");
+  expect(show({ type: "commandExecution", commandActions: [{ type: "search", query: "delta", path: "src/" }] })).toBe('Search "delta" in src/\n');
+  expect(show({ type: "commandExecution", commandActions: [{ type: "listFiles", path: "src/" }] })).toBe("List src/\n");
+  expect(show({ type: "fileChange", changes: [{ path: "src/activity.ts", diff: "PRIVATE BODY" }] })).toBe("Edit src/activity.ts\n");
+  expect(show({ type: "webSearch", query: "Codex streaming" })).toBe("Web search: Codex streaming\n");
+  expect(show({ type: "mcpToolCall", server: "docs", tool: "search", arguments: { query: "streaming", content: "PRIVATE BODY", token: "SECRET" } })).toBe('docs/search: {"query":"streaming","content":"[omitted]","token":"[omitted]"}\n');
+  expect(show({ type: "collabAgentToolCall", tool: "spawnAgent" })).toBe("spawnAgent\n");
+  expect(show({ type: "commandExecution", command: "x".repeat(1000) })).toHaveLength(241);
+  expect(show({ type: "futureEvent" })).toBeUndefined();
 });
 
-test("completion-only calls remain visible, failures appear once, unknown events stay hidden", () => {
-  const activity = new ActivityTranslator();
-  expect(activity.item("item/completed", { id: "a", type: "fileChange", status: "completed" })).toBe("[Codex tool: apply_patch]\n");
-  expect(activity.item("item/completed", { id: "a", type: "fileChange", status: "completed" })).toBeUndefined();
-  expect(activity.item("item/started", { id: "b", type: "commandExecution" })).toBe("[Codex tool: shell]\n");
-  expect(activity.item("item/completed", { id: "b", type: "commandExecution", status: "failed" })).toBe("[Codex tool failed: shell]\n");
-  expect(activity.item("item/completed", { id: "b", type: "commandExecution", status: "failed" })).toBeUndefined();
-  expect(activity.item("item/completed", { id: "c", type: "futureInternalEvent" })).toBeUndefined();
+test("completion-only calls remain visible", () => {
+  const a = new ActivityTranslator();
+  expect(a.item("item/completed", { id: "1", type: "imageView", path: "plot.png" })).toBe("View image plot.png\n");
+  expect(a.item("item/completed", { id: "1", type: "imageView", path: "plot.png" })).toBeUndefined();
 });

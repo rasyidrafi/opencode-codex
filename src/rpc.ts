@@ -46,7 +46,7 @@ export class CodexRpc {
     });
   }
   async initialize() {
-    await this.request("initialize", { clientInfo: { name: "opencode_codex", title: "OpenCode Codex", version: "0.1.1" } });
+    await this.request("initialize", { clientInfo: { name: "opencode_codex", title: "OpenCode Codex", version: "0.1.2" } });
     this.send({ method: "initialized" });
   }
   private fail(error: Error) {

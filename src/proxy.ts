@@ -219,7 +219,7 @@ async function handleMessages(request: Request, body: AnthropicMessageRequest): 
       for await (const event of events) {
         if (event.kind === "text") appendSegment(segments, "text", event.text);
         else if (event.kind === "reasoning") appendSegment(segments, "thinking", event.text);
-        else if (event.kind === "activity") segments.push({ kind: "thinking", text: event.text });
+        else if (event.kind === "activity") appendSegment(segments, "thinking", event.text);
         else if (event.kind === "finish") {
           finish = stopReason(event.finishReason);
 
@@ -301,10 +301,15 @@ function streamAnthropic(
         if (separate) closeBlock();
       };
 
+      let previousKind: CodexEvent["kind"] | undefined;
       const handleEvent = (event: CodexEvent): boolean => {
+        // Keep actual reasoning separate from tool summaries, but group adjacent calls.
+        if ((event.kind === "activity" && previousKind === "reasoning") ||
+            (event.kind === "reasoning" && previousKind === "activity")) closeBlock();
+        previousKind = event.kind;
         if (event.kind === "text") emitBlock("text", event.text);
         else if (event.kind === "reasoning") emitBlock("thinking", event.text);
-        else if (event.kind === "activity") emitBlock("thinking", event.text, true);
+        else if (event.kind === "activity") emitBlock("thinking", event.text);
         else if (event.kind === "finish") {
           finish = stopReason(event.finishReason);
 

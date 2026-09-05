@@ -16,6 +16,20 @@ createInterface({ input: process.stdin }).on("line", line => {
     if (m.params.input[0].text.includes("FAIL_TURN")) {
       notify("turn/completed", { turn: { status: "failed", error: { message: "fixture failure" } } }); return;
     }
+    if (m.params.input[0].text.includes("DELAYED_STREAM")) {
+      notify("item/agentMessage/delta", { itemId: "message", delta: "First fragment." });
+      setTimeout(() => {
+        notify("item/agentMessage/delta", { itemId: "message", delta: " Second fragment." });
+        notify("item/completed", { item: { id: "message", type: "agentMessage", text: "First fragment. Second fragment." } });
+        for (const [id, path] of [["read1", "a.ts"], ["read2", "b.ts"]]) {
+          const item = { id, type: "commandExecution", commandActions: [{ type: "read", path }] };
+          notify("item/started", { item });
+          notify("item/completed", { item: { ...item, status: "completed" } });
+        }
+        notify("turn/completed", { turn: { status: "completed" } });
+      }, 800);
+      return;
+    }
     notify("item/agentMessage/delta", { itemId: "message", delta: "Working." });
     notify("item/completed", { item: { id: "message", type: "agentMessage", text: "Working." } });
     notify("item/reasoning/summaryTextDelta", { itemId: "reason", delta: "Checking the file." });
