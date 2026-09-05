@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { streamCodex } from "../src/agent";
 import { startProxy, stopProxy, getProxyBaseUrl } from "../src/proxy";
 import { LOCAL_API_KEY } from "../src/constants";
-import { buildCodexPrompt } from "../src/prompt";
+import { buildCodexInput, buildCodexPrompt } from "../src/prompt";
 process.env.OPENCODE_CODEX_METADATA = "off";
 process.env.OPENCODE_CODEX_BIN = resolve("test/fixtures/fake-codex.mjs");
 afterAll(async () => { await stopProxy(); delete process.env.OPENCODE_CODEX_BIN; });
@@ -53,6 +53,34 @@ test("does not inject OpenCode tool instructions or replay history on resumed tu
   expect(fresh).not.toContain("imaginary tool");
 });
 
+test("forwards image file parts as Codex image input", async () => {
+  const input = buildCodexInput([{ role: "user", content: [
+    { type: "text", text: "What is in this image?" },
+    { type: "file", mime: "image/png", filename: "image.png", url: "data:image/png;base64,AAAA" },
+  ] }], { includeHistory: false });
+  expect(input).toEqual([
+    { type: "text", text: "What is in this image?", text_elements: [] },
+    { type: "image", url: "data:image/png;base64,AAAA" },
+  ]);
+
+  const headers = { "x-api-key": LOCAL_API_KEY, "content-type": "application/json", "x-opencode-codex-request-kind": "title" };
+  const response = await fetch(getProxyBaseUrl() + "/messages", {
+    method: "POST", headers,
+    body: JSON.stringify({ model: "fake-model", messages: [{ role: "user", content: [
+      { type: "text", text: "What is in this image?" },
+      { type: "file", mime: "image/png", filename: "image.png", url: "data:image/png;base64,AAAA" },
+    ] }] }),
+  });
+  expect(response.status).toBe(200);
+  expect((await response.json() as any).content[0].text).toBe("Image received.");
+});
+
+test("continues rejecting non-image file parts", () => {
+  expect(() => buildCodexInput([{ role: "user", content: [
+    { type: "file", mime: "text/plain", filename: "notes.txt", url: "data:text/plain;base64,SGk=" },
+  ] }], { includeHistory: false })).toThrow("Unsupported input block: file");
+});
+
 test("persists thread mapping, replays completed retries and rejects uncertain retries", async () => {
   const { mkdtemp, rm, readdir, readFile } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
@@ -100,7 +128,8 @@ test("context policy overrides generic windows; metadata cannot replace Codex ca
     const config = configModel({ ...meta, id: "gpt-fixture", name: "Official CLI name", description: "", nativeInputModalities: ["text", "image"], efforts: ["low"], isDefault: true });
     expect(config.limit.context).toBe(272000);
     expect(config.name).toBe("Official CLI name");
-    expect(config.modalities.input).toEqual(["text"]);
+    expect(config.modalities.input).toEqual(["text", "image"]);
+    expect(config.attachment).toBe(true);
     expect(config.tool_call).toBe(false);
     expect(config.options.includeUsage).toBe(false);
   }
@@ -159,4 +188,38 @@ test("nonstreaming responses also separate consecutive tool calls", async () => 
   expect(body.content.filter((p: any) => p.type === "thinking").map((p: any) => p.thinking)).toEqual([
     "[Codex Tool: Read a.ts]\n", "[Codex Tool: Read b.ts]\n",
   ]);
+});
+
+
+test("preserves boundaries between text blocks", () => {
+  const messages = [{ role: "user", content: [{ type: "text", text: "first" }, { type: "text", text: "second" }] }];
+  for (const options of [{ includeHistory: false }, { includeHistory: true }, { includeHistory: true, utility: true }]) {
+    expect(buildCodexInput(messages, options)).toEqual([{ type: "text", text: buildCodexPrompt(messages, options), text_elements: [] }]);
+  }
+});
+
+test("accepts Anthropic image sources and OpenAI image details", () => {
+  for (const part of [
+    { type: "image", source: { type: "base64", media_type: "image/png", data: "AAAA" } },
+    { type: "image", source: { type: "url", url: "data:image/png;base64,AAAA" } },
+    { type: "image_url", image_url: { url: "data:image/png;base64,AAAA", detail: "high" } },
+  ]) {
+    expect(buildCodexInput([{ role: "user", content: [part] }], { includeHistory: false })).toEqual([
+      { type: "image", url: "data:image/png;base64,AAAA", ...(part.type === "image_url" ? { detail: "high" } : {}) },
+    ]);
+  }
+  expect(() => buildCodexInput([{ role: "user", content: [{ type: "image" }] }], { includeHistory: false })).toThrow("Image input must include");
+});
+
+test("imports historical images only for fresh threads", () => {
+  const messages = [
+    { role: "system", content: "ignored instructions" },
+    { role: "user", content: [{ type: "image", source: { type: "url", url: "https://example.com/image.png" } }] },
+    { role: "assistant", content: "An image." },
+    { role: "user", content: "Describe it again." },
+  ];
+  const fresh = buildCodexInput(messages, { includeHistory: true });
+  expect(fresh.some(input => input.type === "image")).toBe(true);
+  expect(JSON.stringify(fresh)).not.toContain("ignored instructions");
+  expect(buildCodexInput(messages, { includeHistory: false })).toEqual([{ type: "text", text: "Describe it again.", text_elements: [] }]);
 });

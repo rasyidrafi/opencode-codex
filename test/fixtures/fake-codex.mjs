@@ -12,6 +12,12 @@ createInterface({ input: process.stdin }).on("line", line => {
     result = { turn: { id: "turn-test" } };
     send({ id: m.id, result });
     notify("turn/started", { turn: { id: "turn-test" } });
+    if (m.params.input.some(item => item.type === "image" && item.url === "data:image/png;base64,AAAA")) {
+      notify("item/agentMessage/delta", { itemId: "message", delta: "Image received." });
+      notify("item/completed", { item: { id: "message", type: "agentMessage", text: "Image received." } });
+      notify("turn/completed", { turn: { status: "completed" } });
+      return;
+    }
     if (m.params.input[0].text.includes("WAIT_FOREVER")) return;
     if (m.params.input[0].text.includes("FAIL_TURN")) {
       notify("turn/completed", { turn: { status: "failed", error: { message: "fixture failure" } } }); return;

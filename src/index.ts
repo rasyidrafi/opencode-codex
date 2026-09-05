@@ -7,8 +7,10 @@ function variants(m: CodexModel) {
   return Object.fromEntries([...new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max", ...m.efforts])].map(e => [e, m.efforts.includes(e) ? { effort: e } : { disabled: true }]));
 }
 export function configModel(m: CodexModel) {
-  return { name: m.name, family: m.family, release_date: m.releaseDate || "", reasoning: m.efforts.length > 0, interleaved: true, temperature: false, tool_call: false, attachment: false,
-    modalities: { input: ["text"], output: ["text"] }, limit: { context: m.contextWindow, output: m.maxOutput },
+  const inputModalities = ["text", ...(m.nativeInputModalities.some(modality => modality.toLowerCase() === "image") ? ["image"] : [])];
+  const supportsImage = inputModalities.includes("image");
+  return { name: m.name, family: m.family, release_date: m.releaseDate || "", reasoning: m.efforts.length > 0, interleaved: true, temperature: false, tool_call: false, attachment: supportsImage,
+    modalities: { input: inputModalities, output: ["text"] }, limit: { context: m.contextWindow, output: m.maxOutput },
     options: { includeUsage: false }, variants: variants(m) };
 }
 export const CodexPlugin: Plugin = async input => {
@@ -48,8 +50,8 @@ export const CodexPlugin: Plugin = async input => {
         return Object.fromEntries((await refreshModels(input.directory)).map(m => [m.id, {
           ...configModel(m), id: m.id, providerID: PROVIDER_ID,
           api: { id: m.id, url: getProxyBaseUrl(), npm: ANTHROPIC_NPM },
-          capabilities: { temperature: false, reasoning: m.efforts.length > 0, attachment: false, toolcall: false,
-            input: { text: true, image: false, audio: false, video: false, pdf: false },
+          capabilities: { temperature: false, reasoning: m.efforts.length > 0, attachment: m.nativeInputModalities.some(modality => modality.toLowerCase() === "image"), toolcall: false,
+            input: { text: true, image: m.nativeInputModalities.some(modality => modality.toLowerCase() === "image"), audio: false, video: false, pdf: false },
             output: { text: true, image: false, audio: false, video: false, pdf: false }, interleaved: true },
           cost: { input: 0, output: 0, cache: { read: 0, write: 0 } }, status: "active", headers: {}, release_date: m.releaseDate || "",
         }])) as any;

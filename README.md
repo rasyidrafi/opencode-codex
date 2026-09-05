@@ -55,7 +55,7 @@ Codex reads its existing configuration and credentials. The plugin only stores a
 - Tool calls show useful arguments, such as `[Codex Tool: Read src/agent.ts, lines 1–180]`, `[Codex Tool: Search "delta" in src/]`, or `[Codex Tool: Shell npm run check]`. Each call gets its own thinking block, separate from other calls and actual reasoning. Call IDs deduplicate lifecycle updates; successful completion messages and tool output are omitted. Failures get a short notice. Long arguments are truncated, and structured file bodies and credential fields are omitted.
 - Assistant text is forwarded as Codex emits deltas, without waiting for turn completion. Some Codex responses arrive from app-server as a burst of deltas at message completion; the wrapper cannot display that text before it arrives.
 
-The initial adapter accepts text input. Reference workspace files by path. Image, audio, and document attachments are rejected explicitly. OpenCode conversation forks import visible conversation history into a fresh Codex thread; they do not clone hidden Codex history or undo file changes.
+The adapter accepts text input and forwards image attachments to Codex models that advertise image input. Text files, audio, and document attachments are still rejected. Reference workspace files by path when possible. OpenCode conversation forks import visible conversation history into a fresh Codex thread; they do not clone hidden Codex history or undo file changes.
 
 ## Model metadata
 

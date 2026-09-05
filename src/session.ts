@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile, open, unlink } from "node:fs/promis
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { streamCodex, type RunOptions, type CodexEvent } from "./agent.js";
-import { buildCodexPrompt, type OpenAIMessage } from "./prompt.js";
+import { buildCodexInput, type OpenAIMessage } from "./prompt.js";
 const tails = new Map<string, Promise<void>>();
 type Record = { threadId?: string; request?: string; state?: "started" | "completed"; events?: CodexEvent[] };
 export function sessionKey(directory: string, sessionId: string | undefined, _prompt?: string) {
@@ -67,7 +67,8 @@ export async function* runInSession(key: string, options: RunOptions & { message
     yield* (async function* () {
       for await (const event of streamCodex({
         ...options, threadId: record.threadId,
-        prompt: buildCodexPrompt(options.messages, { includeHistory: !record.threadId }),
+        prompt: "",
+        input: buildCodexInput(options.messages, { includeHistory: !record.threadId }),
         onThread: async id => {
           record = { threadId: id, request, state: "started" };
           await save(file, record);

@@ -14,7 +14,7 @@ import {
 } from "./constants.js";
 import { streamCodex, type CodexEvent } from "./agent.js";
 import { getCodexModels, refreshModels, resolveCodexModel, type CodexModel } from "./models.js";
-import { buildCodexPrompt, isUtility, type OpenAIMessage } from "./prompt.js";
+import { buildCodexInput, isUtility, type OpenAIMessage } from "./prompt.js";
 import { runInSession, sessionKey } from "./session.js";
 
 import { log } from "./log.js";
@@ -186,7 +186,7 @@ async function handleMessages(request: Request, body: AnthropicMessageRequest): 
   const sessionId = readHeader(request, SESSION_HEADER);
   const titleRequest = ["title", "summary"].includes(readHeader(request, REQUEST_KIND_HEADER) || "") || isUtility(allMessages);
   const key = sessionKey(directory, sessionId, JSON.stringify(allMessages));
-  const prompt = titleRequest ? buildCodexPrompt(allMessages, { includeHistory: true, utility: true }) : "";
+  const input = titleRequest ? buildCodexInput(allMessages, { includeHistory: true, utility: true }) : undefined;
   const effort = readHeader(request, EFFORT_HEADER);
   if (effort && !getCodexModels().find(m => m.id === model)?.efforts.includes(effort)) throw new Error("Unsupported Codex reasoning effort");
   const abort = new AbortController();
@@ -195,7 +195,8 @@ async function handleMessages(request: Request, body: AnthropicMessageRequest): 
   const events: AsyncIterable<CodexEvent> = titleRequest
     ? streamCodex({
         cwd: directory,
-        prompt,
+        prompt: "",
+        input,
         model,
         effort,
         noSession: true,
@@ -203,7 +204,7 @@ async function handleMessages(request: Request, body: AnthropicMessageRequest): 
       })
     : runInSession(key, {
         cwd: directory,
-        prompt,
+        prompt: "",
         model,
         effort,
         messages: allMessages,

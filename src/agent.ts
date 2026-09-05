@@ -1,13 +1,14 @@
 import { ActivityTranslator } from "./activity.js";
 import type { ThreadStartParams } from "./generated/v2/ThreadStartParams.js";
 import type { TurnStartParams } from "./generated/v2/TurnStartParams.js";
+import type { UserInput } from "./generated/v2/UserInput.js";
 import { CodexRpc } from "./rpc.js";
 export type CodexUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; costUsd?: number };
 export type CodexEvent =
  | { kind: "text" | "reasoning" | "activity"; text: string }
  | { kind: "error"; text: string }
  | { kind: "finish"; usage: CodexUsage; finishReason: string; sessionId?: string };
-export type RunOptions = { cwd: string; prompt: string; model: string; effort?: string; signal?: AbortSignal; noSession?: boolean; readOnly?: boolean; threadId?: string; onThread?: (id: string) => Promise<void>; onActivity?: () => void };
+export type RunOptions = { cwd: string; prompt: string; input?: UserInput[]; model: string; effort?: string; signal?: AbortSignal; noSession?: boolean; readOnly?: boolean; threadId?: string; onThread?: (id: string) => Promise<void>; onActivity?: () => void };
 export async function* streamCodex(options: RunOptions): AsyncGenerator<CodexEvent> {
   const rpc = new CodexRpc(options.cwd);
   const queue: CodexEvent[] = [];
@@ -80,7 +81,7 @@ export async function* streamCodex(options: RunOptions): AsyncGenerator<CodexEve
     threadId = result.thread.id;
     await options.onThread?.(threadId!);
     if (options.signal?.aborted) return;
-    const turnParams: TurnStartParams = { threadId: threadId!, input: [{ type: "text", text: options.prompt, text_elements: [] }], model: options.model, ...(options.effort ? { effort: options.effort as TurnStartParams["effort"] } : {}) };
+    const turnParams: TurnStartParams = { threadId: threadId!, input: options.input || [{ type: "text", text: options.prompt, text_elements: [] }], model: options.model, ...(options.effort ? { effort: options.effort as TurnStartParams["effort"] } : {}) };
     const started = await rpc.request("turn/start", turnParams);
     turnId = started.turn.id;
     if (options.signal?.aborted) interrupt();
