@@ -1,5 +1,5 @@
 {
-  "name": "opencode-codex",
+  "name": "@rasyid_rafi/opencode-codex",
   "version": "0.1.0",
   "type": "module",
   "description": "OpenCode provider wrapping the Codex app-server agent",
@@ -25,7 +25,10 @@
     "check": "npm run build && npm test",
     "test:live": "bun test ./test/live.ts",
     "test:e2e": "bun test ./test/e2e.ts",
-    "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+    "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "prepublishOnly": "npm run check",
+    "prepack": "npm run build",
+    "test:package": "node test/package.mjs"
   },
   "dependencies": {
     "@opencode-ai/plugin": "1.18.29"
@@ -38,5 +41,23 @@
   "engines": {
     "node": ">=18",
     "bun": ">=1.3.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rasyidrafi/opencode-codex.git"
+  },
+  "homepage": "https://github.com/rasyidrafi/opencode-codex#readme",
+  "bugs": {
+    "url": "https://github.com/rasyidrafi/opencode-codex/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "codex",
+    "codex-app-server"
+  ]
 }

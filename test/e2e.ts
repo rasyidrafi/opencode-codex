@@ -8,7 +8,7 @@ test("OpenCode loads plugin, edits through Codex and resumes across processes", 
   const catalog = await refreshModels(cwd);
   const model = process.env.OPENCODE_CODEX_TEST_MODEL || catalog.find(m => m.isDefault)!.id;
   const config = join(cwd, "opencode.json");
-  await writeFile(config, JSON.stringify({ plugin: [resolve("opencode-codex.js")], model: "codex/" + model }));
+  await writeFile(config, JSON.stringify({ plugin: [resolve(process.env.OPENCODE_CODEX_TEST_PLUGIN || "opencode-codex.js")], model: "codex/" + model }));
   const env = { ...process.env, OPENCODE_CONFIG: config, OPENCODE_CODEX_DATA_DIR: join(cwd, "sessions"), OPENCODE_DISABLE_DEFAULT_PLUGINS: "true" };
   async function run(prompt: string, session?: string) {
     const p = Bun.spawn(["opencode", "run", "--dir", cwd, "--model", "codex/" + model, "--format", "json", "--thinking", ...(session ? ["--session", session] : []), prompt], { cwd, env, stdout: "pipe", stderr: "pipe" });
